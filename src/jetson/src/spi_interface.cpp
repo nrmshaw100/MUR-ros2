@@ -262,8 +262,8 @@ private:
         std::vector<uint8_t> spi_in;
         
         // empty the msg out and in buffers to avoid confusion during debugging
-        msg_out = {};
-        msg_out_prime = {};
+        msg_out = custom_interfaces::msg::SPI();
+        msg_out_prime = custom_interfaces::msg::SPI();
 
         // The first transfer clocks the request into the slave; the second reads back its prepared response.
         spi1_.transfer(spi_out, prime_rx);
