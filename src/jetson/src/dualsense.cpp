@@ -11,8 +11,6 @@
 #include <memory>
 
 #define DOF 6
-#define GET_STATUS 0x00
-#define GET_DATA 0x02
 
 class DualsenseSub : public rclcpp::Node {
 public:
@@ -59,14 +57,11 @@ private:
         msg_out.synch = 0x55;
         msg_out.syncl = 0x55;
         msg_out.size = DOF * sizeof(float);
-        msg_out.address = current_address_;
+        msg_out.address = THRUST_CMD;
         std::memcpy(msg_out.data.data(), latest_wrench_.data(), msg_out.size);
 
         publisher_->publish(msg_out);
-        current_address_ = (current_address_ == GET_STATUS) ? GET_DATA : GET_STATUS;
     }
-
-    std::uint8_t current_address_{GET_DATA};
 
     std::array<float, DOF> latest_wrench_{};
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;

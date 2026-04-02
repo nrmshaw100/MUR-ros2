@@ -213,8 +213,6 @@ private:
     }
 
     // Decode the returned SPI frame into a ROS message.
-    //
-    // Several validation checks are currently left commented out while bring-up is in progress.
     bool decode_rx_packet(
         const std::vector<uint8_t>& spi_in,
         custom_interfaces::msg::SPI& msg_out
@@ -223,26 +221,19 @@ private:
         msg_out.synch = spi_in[SYNCH_POS];
         msg_out.syncl = spi_in[SYNCL_POS];
 
-        // if (msg_out.synch != START_FRAMEH || msg_out.syncl != START_FRAMEL) {
-        //     RCLCPP_INFO(this->get_logger(), "Bad sync bytes");
-        //     return false;
-        // }
-
         msg_out.size = spi_in[SIZE_POS];
         msg_out.address = spi_in[ADDR_POS];
-        // if (msg_out.size > msg_out.data.size()) {
-        //     RCLCPP_INFO(this->get_logger(), "Payload too large: %u", msg_out.size);
-        //     return false;
-        // }
 
         std::fill(msg_out.data.begin(), msg_out.data.end(), 0);
         std::copy(spi_in.begin() + DATA_POS, spi_in.begin() + DATA_POS + DATA_SIZE, msg_out.data.begin());
 
+        // caluculate the crc in little endian format since that's how esp32 sends it
         const auto crc_le = static_cast<std::uint16_t>(spi_in[CRC1_POS])
                           | (static_cast<std::uint16_t>(spi_in[CRC2_POS]) << 8);
         msg_out.crc = crc_le;
 
 
+        // check the sync bytes
         if (msg_out.synch != START_FRAMEH || msg_out.syncl != START_FRAMEL) {
             #ifdef DEBUG
             RCLCPP_WARN(this->get_logger(), "Bad sync bytes: %02X %02X", msg_out.synch, msg_out.syncl);
@@ -250,26 +241,13 @@ private:
             return false;
         }
 
+        // check the crc
         if (msg_out.crc != compute_crc16(msg_out)) {
             #ifdef DEBUG
             RCLCPP_WARN(this->get_logger(), "Bad CRC: expected %X, received %X", compute_crc16(msg_out), msg_out.crc);
             #endif
             return false;
         }
-
-        #ifdef DEBUG
-        const auto expected_crc = compute_crc16(msg_out);
-        if (expected_crc != crc_le) {
-            RCLCPP_WARN(
-                this->get_logger(),
-                "Bad CRC: expected %X, received_le=%X",
-                expected_crc,
-                crc_le
-            );
-        } else if (expected_crc == crc_le) {
-            RCLCPP_INFO(this->get_logger(), "CRC check passed");
-        }
-        #endif
 
         return true;
     }

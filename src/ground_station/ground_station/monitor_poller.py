@@ -1,18 +1,20 @@
+import time
 import rclpy
 from rclpy.node import Node
 
 from custom_interfaces.msg import SPI
 
-GET_STATUS = 0x01
-GET_DATA = 0x03
+GET_STATUS = 0x00
+GET_DATA = 0x01
 
-class MonitorPoller(Node):
+class MonitorSystem(Node):
     """ROS2 node that periodically polls for new data from the SPI monitor and updates the UI."""
 
     def __init__(self) -> None:
         """Create the ROS2 node and start polling loop."""
-        super().__init__("monitor_poller")
-        self.publisher_ = self.create_publisher(SPI, "/spi_monitor", 10)
+        super().__init__("monitor_system")
+        self.sys_controller_pub_ = self.create_publisher(SPI, "/spi_controller", 10)
+        self.sys_monitor_pub_ = self.create_publisher(SPI, "/spi_monitor", 10)
         self.timer = self.create_timer(0.2, self._poll_spi_monitor)
         self.address_val = GET_DATA
 
@@ -25,7 +27,9 @@ class MonitorPoller(Node):
         msg.address = self.address_val  
         msg.size = 0
         msg.crc = 0
-        self.publisher_.publish(msg)
+        self.sys_monitor_pub_.publish(msg)
+        time.sleep(0.05) 
+        self.sys_controller_pub_.publish(msg)
 
         if self.address_val == GET_STATUS:
             self.address_val = GET_DATA
@@ -34,7 +38,7 @@ class MonitorPoller(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    monitor_poller = MonitorPoller()
-    rclpy.spin(monitor_poller)
-    monitor_poller.destroy_node()
+    monitor_system = MonitorSystem()
+    rclpy.spin(monitor_system)
+    monitor_system.destroy_node()
     rclpy.shutdown()
